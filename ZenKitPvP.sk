@@ -1,0 +1,848 @@
+on load:
+	if {kitpvp:autojoin} is not set:
+		set {kitpvp:autojoin} to false
+	send "&e&l(ZenKitPvP) &aPlugin enabled" to console
+	loop all players:
+		set {kitpvp:join:%loop-player%} to false
+
+on unload:
+	send "&e&l(ZenKitPvP) &aPlugin disabled" to console
+
+on join:
+	set {kitpvp:join:%player%} to false
+	if {kitpvp:autojoin} is true:
+		wait 1 seconds
+		execute player command "/kitpvp join"
+		set {ZenKitPvP.config::join.msg} to value "joinmessage" get of "plugins/ZenKitPvP/messages.yml"
+		replace all "<player>" with "%player%" in {ZenKitPvP.config::join.msg}
+		broadcast "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::join.msg}%"
+
+on world change:
+	set {ZenKitPvP.world} to {ZenKitPvP.config::world}
+	if player is in "%{ZenKitPvP.world}%":
+		loop all players in player's world:
+			set {ZenKitPvP.config::join.msg} to value "joinmessage" get of "plugins/ZenKitPvP/messages.yml"
+			replace all "<player>" with "%player%" in {ZenKitPvP.config::join.msg}
+			send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::join.msg}%" to loop-player
+
+command /kitpvp [<text>] [<text>] [<number>]:
+	aliases: kp
+	trigger:
+		if arg 1 is "join":
+			if {kitpvp:spawn} is set:
+				if {kitpvp:leave} is set:
+					if {kitpvp:join:%player%} is false:
+						if arg 2 is not set:
+							make player execute command "/removeboard"
+							invoke "save-inv" from player
+							set {kitpvp:join:%player%} to true
+							send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::entered}%"
+							teleport player to {kitpvp:spawn}
+							set {killstreaks::%player%} to 0
+							clear player's inventory
+							set player's health to 20
+							set player's hunger to 20
+							set player's gamemode to survival
+							remove invisibility and speed and haste and regeneration and strength from player
+							wait 0.5 seconds
+							if {STATS::%player%} is not set:
+								set {kitpvpkills::%player%} to 0
+								set {kitpvpdeaths::%player%} to 0
+								set {STATS::%player%} to 5
+								set {kitpvp::coins::%player%} to 0
+						else:
+							send "%{ZenKitPvP.config::unknowncommand}%"
+				else:
+					send "%{ZenKitPvP.config::prefix}% &cThe lobby is not set!"
+			else:
+				send "%{ZenKitPvP.config::prefix}% &cThe spawn is not set!"
+		else if arg 1 is "setspawn":
+			if player has permission "zenpvp.kitpvp.admin":
+				if arg 2 is not set:
+					set {kitpvp:spawn} to location of player
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::set_spawn}%"
+				else:
+					send "%{ZenKitPvP.config::unknowncommand}%"
+			else:
+				send "%{ZenKitPvP.config::nopermission}%"
+		else if arg 1 is "leave":
+			if {kitpvp:leave} is set:
+				if {kitpvp:join:%player%} is true:
+					if arg 2 is not set:
+						set {kitpvp:join:%player%} to false
+						send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::leave}%"
+						teleport player to {kitpvp:leave}
+						set {killstreaks::%player%} to 0
+						make player execute command "/removeboard"
+						invoke "give-inv" from player
+					else:
+						send "%{ZenKitPvP.config::unknowncommand}%"
+				else:
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youcannot}%"
+			else:
+				send "%{ZenKitPvP.config::prefix}% &cThe lobby is not set"
+		else if arg 1 is "setlobby":
+			if player has permission "zenpvp.kitpvp.admin":
+				if arg 2 is not set:
+					set {kitpvp:leave} to location of player
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::set_leave}%"
+				else:
+					send "%{ZenKitPvP.config::unknowncommand}%"
+			else:
+				send "%{ZenKitPvP.config::nopermission}%"
+		else if arg 1 is "stats":
+			if {kitpvp:join:%player%} is true:
+				if arg 2 is set:
+					if arg 3 is not set:
+						if arg 2 is set:
+							open chest with 3 rows named "Stats &a%arg 2%" to player
+							wait 0.3 seconds
+							play raw sound "random.pop" at player with pitch 1 volume 0.1
+							format slot 11 of player with diamond sword named "&aKills:&7 %{kitpvpkills::%arg 2%}%" to close
+							wait 0.3 seconds
+							play raw sound "random.pop" at player with pitch 1 volume 0.1
+							format slot 13 of player with gold nugget named "&aCoins:&7 %{kitpvp::coins::%arg 2%}%" to close
+							wait 0.3 seconds
+							play raw sound "random.pop" at player with pitch 1 volume 0.1
+							format slot 15 of player with bone named "&aDeaths:&7 %{kitpvpdeaths::%arg 2%}%" to close
+						else:
+							send "%{ZenKitPvP.config::unknownplayer}%"
+					else:
+						send "%{ZenKitPvP.config::unknowncommand}%"
+				else:
+					open chest with 3 rows named "Stats &a%player%" to player
+					wait 0.3 seconds
+					play raw sound "random.pop" at player with pitch 1 volume 0.1
+					format slot 11 of player with diamond sword named "&aKills:&7 %{kitpvpkills::%player%}%" to close
+					wait 0.3 seconds
+					play raw sound "random.pop" at player with pitch 1 volume 0.1
+					format slot 13 of player with gold nugget named "&aCoins:&7 %{kitpvp::coins::%player%}%" to close
+					wait 0.3 seconds
+					play raw sound "random.pop" at player with pitch 1 volume 0.1
+					format slot 15 of player with bone named "&aDeaths:&7 %{kitpvpdeaths::%player%}%" to close
+			else:
+				send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youcannot}%"
+		else if arg 1 is "top":
+			if {kitpvp:join:%player%} is true:
+				set {_1st.point} to 0
+				set {_2nd.point} to 0
+				set {_3rd.point} to 0
+				set {_4th.point} to 0
+				set {_5th.point} to 0
+				loop {kitpvpkills::*}:
+					if loop-value is more than {_1st.point}:
+						set {_5th} to {_4tlmg}
+						set {_5th.point} to {_4th.point}
+						set {_4tlmg} to {_3rd}
+						set {_4th.point} to {_3rd.point}
+						set {_3rd} to {_2nd}
+						set {_3rd.point} to {_2nd.point}
+						set {_2nd} to {_1st}
+						set {_2nd.point} to {_1st.point}
+						set {_1st} to loop-index
+						set {_1st.point} to loop-value
+					else if loop-value is more than {_2nd.point}:
+						set {_5th} to {_4tlmg}
+						set {_5th.point} to {_4th.point}
+						set {_4tlmg} to {_3rd}
+						set {_4th.point} to {_3rd.point}
+						set {_3rd} to {_2nd}
+						set {_3rd.point} to {_2nd.point}
+						set {_2nd} to loop-index
+						set {_2nd.point} to loop-value
+					else if loop-value is more than {_3rd.point}:
+						set {_5th} to {_4tlmg}
+						set {_5th.point} to {_4th.point}
+						set {_4tlmg} to {_3rd}
+						set {_4th.point} to {_3rd.point}
+						set {_3rd} to loop-index
+						set {_3rd.point} to loop-value
+					else if loop-value is more than {_4th.point}:
+						set {_5th} to {_4tlmg}
+						set {_5th.point} to {_4th.point}
+						set {_4tlmg} to loop-index
+						set {_4th.point} to loop-value
+					else if loop-value is more than {_5th.point}:
+						set {_5th} to loop-index
+						set {_5th.point} to loop-value
+				open chest with 3 rows named "Top kills" to player
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 10 of player with emerald block named "&aTop 1" with lore "&e%{_1st}%:&7 %{_1st.point}%" to close
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 12 of player with diamond named "&aTop 2" with lore "&e%{_2nd}%:&7 %{_2nd.point}% " to close
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 14 of player with gold ingot named "&aTop 3" with lore "&e%{_3rd}%:&7 %{_3rd.point}%" to close
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 16 of player with iron ingot named "&aTop 4" with lore "&e%{_4tlmg}%:&7 %{_4th.point}%" to close
+			else:
+				send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youcannot}%"
+		else if arg 1 is "addcoins":
+			if player has permission "zenpvp.kitpvp.admin":
+				if arg 2 is set:
+					if arg 3 is set:
+						add arg 3 to {kitpvp::coins::%arg-2%}
+						send "%{ZenKitPvP.config::prefix}% &7added &9%arg 3% &7coins for &a%arg 2%"
+					else:
+						send "%{ZenKitPvP.config::prefix}% &7Use: &a/kitpvp addcoins [player] [amount]"
+						send "%{ZenKitPvP.config::unknownplayer}%"
+				else:
+					send "%{ZenKitPvP.config::prefix}% &7Use: &a/kitpvp addcoins [player] [amount]"
+					send "%{ZenKitPvP.config::prefix}% &cPlease add an amount!"
+			else:
+				send "%{ZenKitPvP.config::nopermission}%"
+		else if arg 1 is "coins":
+			if {kitpvp:join:%player%} is true:
+				send "%{ZenKitPvP.config::prefix}% &7You have &9&l%{kitpvp::coins::%player%}% &7coins"
+			else:
+				send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youcannot}%"
+		else if arg 1 is "autojoin":
+			if player has permission "zenpvp.kitpvp.admin":
+				if {kitpvp:autojoin} is true:
+					set {kitpvp:autojoin} to false
+					send "%{ZenKitPvP.config::prefix}% &7Autojoin disabled."
+					stop
+				if {kitpvp:autojoin} is false:
+					set {kitpvp:autojoin} to true
+					send "%{ZenKitPvP.config::prefix}% &7Autojoin enabled."
+			else:
+				send "%{ZenKitPvP.config::nopermission}%"
+		else if arg 1 is "reload":
+			if player has permission "zenpvp.kitpvp.admin":
+				send "%{ZenKitPvP.config::prefix}% &aReloading..."
+				execute console command "/sk reload ZenKitPvP"
+				wait 0.3 seconds
+				send "%{ZenKitPvP.config::prefix}% &aReload complete."
+			else:
+				send "%{ZenKitPvP.config::nopermission}%"
+		else if arg 1 is "achievements":
+			if {kitpvp:join:%player%} is true:
+				open chest with 3 rows named "Achievements" to player
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 0 of player with gray dye named "&4&lFIST KILL" with lore "&6Fist Kill!||&7||&e&lOBJETIVE: &b1 KILL||&e&lSTATE: &c&lINCOMPLETE" to close
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 1 of player with gray dye named "&c&lNEXT LEVEL" with lore "&620 Kills, great job!||&7||&e&lOBJETIVE: &b20 KILLS||&e&lSTATE: &c&lINCOMPLETE" to close
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 2 of player with gray dye named "&6&lLEGEND" with lore "&650 kills, what are you, a legend?!||&7||&e&lOBJETIVE: &b50 KILLS||&e&lSTATE: &c&lINCOMPLETE" to close
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 3 of player with gray dye named "&b&lDEMI GOD" with lore "&6100 Kills?! What a beast!||&7||&e&lOBJETIVE: &b100 KILLS||&e&lSTATE: &c&lINCOMPLETE" to close
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 4 of player with gray dye named "&6&l&kd&c&lGOD&6&l&kd" with lore "&6YOU ARE A GOD!||&7Well done!||&7||&e&lOBJETIVE: &b1000 KILLS||&e&lSTATE: &c&lINCOMPLETE" to close
+				if {kitpvpkills::%player%} is greater than 0:
+					wait 0.3 seconds
+					play raw sound "note.pling" at player with pitch 1 volume 0.1
+					format slot 0 of player with light green dye named "&4&lFIST KILL" with lore "&6Fist Kill!||&7||&e&lOBJETIVE: &b1 KILL||&e&lSTATE: &a&lCOMPLETE" to close
+				if {kitpvpkills::%player%} is greater than 19:
+					wait 0.3 seconds
+					play raw sound "note.pling" at player with pitch 1 volume 0.1
+					format slot 1 of player with light green dye named "&c&lNEXT LEVEL" with lore "&620 Kills, great job!||&7||&e&lOBJETIVE: &b20 KILLS||&e&lSTATE: &a&lCOMPLETE" to close
+				if {kitpvpkills::%player%} is greater than 49:
+					wait 0.3 seconds
+					play raw sound "note.pling" at player with pitch 1 volume 0.1
+					format slot 2 of player with light green dye named "&6&lLEGEND" with lore "&650 kills, what are you, a legend?!||&7||&e&lOBJETIVE: &b50 KILLS||&e&lSTATE: &a&lCOMPLETE" to close
+				if {kitpvpkills::%player%} is greater than 99:
+					wait 0.3 seconds
+					play raw sound "note.pling" at player with pitch 1 volume 0.1
+					format slot 3 of player with light green dye named "&b&lDEMI GOD" with lore "&6100 Kills?! What a beast!||&7||&e&lOBJETIVE: &b100 KILLS||&e&lSTATE: &a&lCOMPLETE" to close
+				if {kitpvpkills::%player%} is greater than 999:
+					wait 0.3 seconds
+					play raw sound "note.pling" at player with pitch 1 volume 0.1
+					format slot 4 of player with light green dye named "&6&l&kd&c&lGOD&6&l&kd" with lore "&6YOU ARE A GOD!||&7Well done!||&7||&e&lOBJETIVE: &b1000 KILLS||&e&lSTATE: &a&lCOMPLETE" to close
+			else:
+				send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youcannot}%"
+		else if arg 1 is "shop":
+			if {kitpvp:join:%player%} is true:
+				open chest with 3 rows named "Shop" to player
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 10 of player with diamond sword named "&aDiamond Sword" with lore "&ePrice: 520" to close then run [execute player command "/ppshop 1"]
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 11 of player with diamond helmet named "&aDiamond Helmet" with lore "&ePrice: 95" to close then run [execute player command "/ppshop 2"]
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 12 of player with diamond chestplate named "&aDiamond Chestplate" with lore "&ePrice: 85" to close then run [execute player command "/ppshop 3"]
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 13 of player with diamond leggings named "&aDiamond Leggings" with lore "&ePrice: 85" to close then run [execute player command "/ppshop 4"]
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 14 of player with diamond boots named "&aDiamond Boots" with lore "&ePrice: 95" to close then run [execute player command "/ppshop 5"]
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 15 of player with tnt named "&cTNT" with lore "&ePrice: 15" to close then run [execute player command "/ppshop 6"]
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 16 of player with golden apple:0 named "&6Golden Apple" with lore "&ePrice: 25" to close then run [execute player command "/ppshop 7"]
+			else:
+				send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youcannot}%"
+		else if arg 1 is "kits":
+			if {kitpvp:join:%player%} is true:
+				open chest with 3 rows named "Kits" to player
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 10 of player with iron chestplate named "&aKit Warrior" with lore "&eClick!" to close then run "kitpvpkit 1 %player%"
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 12 of player with leather chestplate named "&aKit Archer" with lore "&eClick!" to close then run "kitpvpkit 2 %player%"
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 14 of player with diamond chestplate named "&aKit Tank" with lore "&eClick!" to close then run "kitpvpkit 3 %player%"
+				wait 0.3 seconds
+				play raw sound "random.pop" at player with pitch 1 volume 0.1
+				format slot 16 of player with tnt named "&aKit TNT" with lore "&eClick!" to close then run "kitpvpkit 4 %player%"
+			else:
+				send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youcannot}%"
+		else:
+			send "&a&m----------------------------------------"
+			send "&9&l             &8&l> &b&lZenKitPvP &8&l<"
+			send "&f"
+			send "&eCreated By: &bChillz"
+			send "&3"
+			send "&f&l           Player Commands:"
+			send "&b/kitpvp stats &6> &7This command shows your stats in a GUI"
+			send "&b/kitpvp stats [player] &6> &7This command allows you to view another players stats"
+			send "&b/kitpvp achievements &6> &7Achievments, best of luck with them!"
+			send "&b/kitpvp coins &6> &7Shows the amount of coins you have (games currency)"
+			send "&b/kitpvp shop &6> &7Opens the shop"
+			send "&b/kitpvp top &6> &7Shows the highest amount of kills!"
+			send "&b/kitpvp kits &6> &7Displays the MAIN KITS."
+			if player has permission "zenpvp.kitpvp.admin":
+				send ""
+				send "&5&l           Administration Commands:"
+				send "&6/kitpvp autojoin &6> &7KEEP THIS ON"
+				send "&6/kitpvp reload &6> &7Reloads the plugin"
+				send "&6/kitpvp setspawn &6> &7Sets the games global JOIN location."
+				send "&6/kitpvp addcoins [player] [amount] &6> &7Gives players coins."
+				send "&9"
+				send "&a&m----------------------------------------"
+			else:
+				send "&9"
+				send "&a&m----------------------------------------"
+
+command /kitpvpkit [<text>] [<player>]:
+	permission: op
+	trigger:
+		if arg 1 is "1":
+			send "%{ZenKitPvP.config::prefix}% &a&lWarrior &7kit selected" to arg 2
+			clear arg 2's inventory
+			play raw sound "note.pling" at arg 2 with pitch 1 volume 0.1
+			give 1 diamond sword of sharpness 2 to arg 2
+			give 35 mushroom stew to arg 2
+			equip arg 2 with iron Helmet
+			equip arg 2 with iron ChestPlate
+			equip arg 2 with iron Leggings
+			equip arg 2 with iron Boots
+		else if arg 1 is "2":
+			send "%{ZenKitPvP.config::prefix}% &a&lArcher &7kit selected" to arg 2
+			clear arg 2's inventory
+			play raw sound "note.pling" at arg 2 with pitch 1 volume 0.1
+			give 1 bow to arg 2
+			give 1 wooden sword of sharpness 2 to arg 2
+			give 32 mushroom stew to arg 2
+			give 64 arrow to arg 2
+			give 64 arrow to arg 2
+			equip arg 2 with leather Helmet
+			equip arg 2 with chainmail ChestPlate
+			equip arg 2 with chainmail Leggings
+			equip arg 2 with leather Boots
+		else if arg 1 is "3":
+			send "%{ZenKitPvP.config::prefix}% &a&lTank &7kit selected" to arg 2
+			clear arg 2's inventory
+			play raw sound "note.pling" at arg 2 with pitch 1 volume 0.1
+			give 1 wood sword of sharpness 1 to arg 2
+			give 35 mushroom stew to arg 2
+			equip arg 2 with diamond Helmet
+			equip arg 2 with diamond ChestPlate
+			equip arg 2 with iron Leggings
+			equip arg 2 with diamond Boots
+		else if arg 1 is "4":
+			send "%{ZenKitPvP.config::prefix}% &a&lTNT &7kit selected" to arg 2
+			clear arg 2's inventory
+			play raw sound "note.pling" at arg 2 with pitch 1 volume 0.1
+			give 1 stone sword of sharpness 2 to arg 2
+			give 2 tnt named "&c&lTNT &7(Right-Click)" to arg 2
+			give 33 mushroom stew to arg 2
+			equip arg 2 with leather Helmet
+			equip arg 2 with leather ChestPlate
+			equip arg 2 with leather Leggings
+			equip arg 2 with leather Boots
+			
+on hunger meter change:
+	if {kitpvp:join:%player%} is true:	
+		cancel event
+
+on drop:
+	if {kitpvp:join:%player%} is true:
+		cancel event
+	    
+on break:
+	if {kitpvp:join:%player%} is true:	
+		cancel event
+
+on place:
+	if {kitpvp:join:%player%} is true:
+		cancel event
+
+on quit:
+	if {kitpvp:join:%player%} is true:
+		make player execute command "/spawn"
+
+on explosion:
+	cancel event
+
+command /removeboard:
+	trigger:
+		display board named "" to player
+
+on right click holding a tnt:
+	make the player shoot a tnt at speed 1
+	remove 1 tnt from player
+
+on damage of player:
+	attacker is a player:
+		projectile exists
+		victim is not dead:
+			send "%{ZenKitPvP.config::prefix}% &9%victim% &7is now at &c&l%health of victim*2%❤" to the attacker
+
+on death of a player:
+	if {kitpvp:join:%player%} is true:
+		strike lightning effect at the victim
+		set the death message to ""
+		set {ZenKitPvP.config::youkilled} to value "youkilled" get of "plugins/ZenKitPvP/messages.yml"
+		set {ZenKitPvP.config::youdied} to value "youdied" get of "plugins/ZenKitPvP/messages.yml"
+		replace all "<victim>" with "%victim%" in {ZenKitPvP.config::youkilled}
+		replace all "<attacker>" with "%attacker%" in {ZenKitPvP.config::youdied}
+		send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youdied}%" to victim
+		send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::youkilled}%" to attacker
+		set player's health to 20
+		execute console command "/gamemode spectator %player%"
+		replace all "<time>" with "%{ZenKitPvP.config::reappear}%" in {ZenKitPvP.config::reappearin}
+		send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::reappearin}%" to player
+		wait 5 second
+		teleport player to {kitpvp:spawn}
+		set player's gamemode to survival
+		give 1 chest named "&f&lKits &7(Right Click)" to player
+		give 1 gold block named "&9&lTop Kills &7(Right Click)" to player
+		give 1 paper named "&6&lStats &7(Right Click)" to player
+		give 1 diamond named "&e&l&kd&6&lAchievments&e&l&kd &7(Right Click)" to player
+		stop
+
+sub "save-inv":
+	set {_value} to parameter 1
+	set {_uuid} to "%uuid of {_value}%"
+	set {_count} to 0
+	loop 36 times:
+		set {inv.%{_uuid}%.%{_count}%.main} to slot {_count} of {_value}'s inventory
+		add 1 to {_count}
+	set {inv.%{_uuid}%.helmet.main} to {_value}'s helmet
+	set {inv.%{_uuid}%.chest.main} to {_value}'s chestplate
+	set {inv.%{_uuid}%.legs.main} to {_value}'s leggings
+	set {inv.%{_uuid}%.feet.main} to {_value}'s boots
+
+sub "give-inv":
+	set {_value} to parameter 1
+	set {_uuid} to "%uuid of {_value}%"
+	set {_count} to 0
+	loop 36 times:
+		set slot {_count} of {_value}'s inventory to {inv.%{_uuid}%.%{_count}%.main}
+		add 1 to {_count}
+	set the helmet of {_value} to {inv.%{_uuid}%.helmet.main}
+	set the chestplate of {_value} to {inv.%{_uuid}%.chest.main}
+	set the leggings of {_value} to {inv.%{_uuid}%.legs.main}
+	set the boots of {_value} to {inv.%{_uuid}%.feet.main}
+
+on right click with mushroom soup:
+	if player's health is not equal to player's max health:
+		cancel event
+		heal the player by 3.5 hearts
+		add 10 to player's hunger bar
+		set tool to bowl
+
+on sign change:
+	if line 1 is "[KitPvPKills]":
+		set {_1st.point} to 0
+		set {_2nd.point} to 0
+		set {_3rd.point} to 0
+		set {_4th.point} to 0
+		set {_5th.point} to 0
+		loop {kitpvpkills::*}:
+			if loop-value is more than {_1st.point}:
+				set {_5th} to {_4tlmg}
+				set {_5th.point} to {_4th.point}
+				set {_4tlmg} to {_3rd}
+				set {_4th.point} to {_3rd.point}
+				set {_3rd} to {_2nd}
+				set {_3rd.point} to {_2nd.point}
+				set {_2nd} to {_1st}
+				set {_2nd.point} to {_1st.point}
+				set {_1st} to loop-index
+				set {_1st.point} to loop-value
+			else if loop-value is more than {_2nd.point}:
+				set {_5th} to {_4tlmg}
+				set {_5th.point} to {_4th.point}
+				set {_4tlmg} to {_3rd}
+				set {_4th.point} to {_3rd.point}
+				set {_3rd} to {_2nd}
+				set {_3rd.point} to {_2nd.point}
+				set {_2nd} to loop-index
+				set {_2nd.point} to loop-value
+			else if loop-value is more than {_3rd.point}:
+				set {_5th} to {_4tlmg}
+				set {_5th.point} to {_4th.point}
+				set {_4tlmg} to {_3rd}
+				set {_4th.point} to {_3rd.point}
+				set {_3rd} to loop-index
+				set {_3rd.point} to loop-value
+			else if loop-value is more than {_4th.point}:
+				set {_5th} to {_4tlmg}
+				set {_5th.point} to {_4th.point}
+				set {_4tlmg} to loop-index
+				set {_4th.point} to loop-value
+			else if loop-value is more than {_5th.point}:
+				set {_5th} to loop-index
+				set {_5th.point} to loop-value
+		if line 2 is "1":
+			if player have permission "zenpvp.kitpvp.admin":
+				set {ZenKitPvP.top1.sign} to location of event-block
+				set line 1 to "&9&lTOP 1"
+				set line 2 to "&a%{_1st}%"
+				set line 3 to "&8%{_1st.point}% kills"
+				set line 4 to ""
+				send "%{ZenKitPvP.config::prefix}% &7Sign added!"
+				stop
+		else if line 2 is "2":
+			if player have permission "zenpvp.kitpvp.admin":
+				set {ZenKitPvP.top2.sign} to location of event-block
+				set line 1 to "&9&lTOP 2"
+				set line 2 to "&a%{_2nd}%"
+				set line 3 to "&8%{_2nd.point}% kills"
+				set line 4 to ""
+				send "%{ZenKitPvP.config::prefix}% &7Sign added!"
+				stop
+		else if line 2 is "3":
+			if player have permission "zenpvp.kitpvp.admin":
+				set {ZenKitPvP.top3.sign} to location of event-block
+				set line 1 to "&9&lTOP 3"
+				set line 2 to "&a%{_3rd}%"
+				set line 3 to "&8%{_3rd.point}% kills"
+				set line 4 to ""
+				send "%{ZenKitPvP.config::prefix}% &7Sign added!"
+				stop
+		else if line 2 is "4":
+			if player have permission "zenpvp.kitpvp.admin":
+				set {ZenKitPvP.top4.sign} to location of event-block
+				set line 1 to "&9&lTOP 4"
+				set line 2 to "&a%{_4th}%"
+				set line 3 to "&8%{_4th.point}% kills"
+				set line 4 to ""
+				send "%{ZenKitPvP.config::prefix}% &7Sign added!"
+				stop
+		else if line 2 is "5":
+			if player have permission "zenpvp.kitpvp.admin":
+				set {ZenKitPvP.top5.sign} to location of event-block
+				set line 1 to "&9&lTOP 5"
+				set line 2 to "&a%{_5th}%"
+				set line 3 to "&8%{_5th.point}% kills"
+				set line 4 to ""
+				send "%{ZenKitPvP.config::prefix}% &7Sign added!"
+				stop
+
+on break of sign:
+	if line 1 of event-block is "&9&lTOP 1":
+		if player have permission "zenpvp.kitpvp.admin":
+			if location of event-block is {ZenKitPvP.top1.sign}:
+				send "%{ZenKitPvP.config::prefix}% &7Sign removed!"
+				delete {ZenKitPvP.top1.sign}
+				stop
+	else if line 1 of event-block is "&9&lTOP 2":
+		if player have permission "zenpvp.kitpvp.admin":
+			if location of event-block is {ZenKitPvP.top2.sign}:
+				send "%{ZenKitPvP.config::prefix}% &7Sign removed!"
+				delete {ZenKitPvP.top2.sign}
+				stop
+	else if line 1 of event-block is "&9&lTOP 3":
+		if player have permission "zenpvp.kitpvp.admin":
+			if location of event-block is {ZenKitPvP.top3.sign}:
+				send "%{ZenKitPvP.config::prefix}% &7Sign removed!"
+				delete {ZenKitPvP.top3.sign}
+				stop
+	else if line 1 of event-block is "&9&lTOP 4":
+		if player have permission "zenpvp.kitpvp.admin":
+			if location of event-block is {ZenKitPvP.top4.sign}:
+				send "%{ZenKitPvP.config::prefix}% &7Sign removed!"
+				delete {ZenKitPvP.top4.sign}
+				stop
+	else if line 1 of event-block is "&9&lTOP 5":
+		if player have permission "zenpvp.kitpvp.admin":
+			if location of event-block is {ZenKitPvP.top5.sign}:
+				send "%{ZenKitPvP.config::prefix}% &7Sign removed!"
+				delete {ZenKitPvP.top5.sign}
+				stop
+
+every 5 seconds:
+	set {_1st.point} to 0
+	set {_2nd.point} to 0
+	set {_3rd.point} to 0
+	set {_4th.point} to 0
+	set {_5th.point} to 0
+	loop {kitpvpkills::*}:
+		if loop-value is more than {_1st.point}:
+			set {_5th} to {_4tlmg}
+			set {_5th.point} to {_4th.point}
+			set {_4tlmg} to {_3rd}
+			set {_4th.point} to {_3rd.point}
+			set {_3rd} to {_2nd}
+			set {_3rd.point} to {_2nd.point}
+			set {_2nd} to {_1st}
+			set {_2nd.point} to {_1st.point}
+			set {_1st} to loop-index
+			set {_1st.point} to loop-value
+		else if loop-value is more than {_2nd.point}:
+			set {_5th} to {_4tlmg}
+			set {_5th.point} to {_4th.point}
+			set {_4tlmg} to {_3rd}
+			set {_4th.point} to {_3rd.point}
+			set {_3rd} to {_2nd}
+			set {_3rd.point} to {_2nd.point}
+			set {_2nd} to loop-index
+			set {_2nd.point} to loop-value
+		else if loop-value is more than {_3rd.point}:
+			set {_5th} to {_4tlmg}
+			set {_5th.point} to {_4th.point}
+			set {_4tlmg} to {_3rd}
+			set {_4th.point} to {_3rd.point}
+			set {_3rd} to loop-index
+			set {_3rd.point} to loop-value
+		else if loop-value is more than {_4th.point}:
+			set {_5th} to {_4tlmg}
+			set {_5th.point} to {_4th.point}
+			set {_4tlmg} to loop-index
+			set {_4th.point} to loop-value
+		else if loop-value is more than {_5th.point}:
+			set {_5th} to loop-index
+			set {_5th.point} to loop-value
+	if {ZenKitPvP.top1.sign} is set:
+		set line 1 of block at {ZenKitPvP.top1.sign} to "&9&lTOP 1"
+		set line 2 of block at {ZenKitPvP.top1.sign} to "&a%{_1st}%"
+		set line 3 of block at {ZenKitPvP.top1.sign} to "&8%{_1st.point}% kills"
+		set line 4 of block at {ZenKitPvP.top1.sign} to ""
+		replace "<none>" with "None" in line 2 of block at {ZenKitPvP.top1.sign}
+		replace "<none>" with "0" in line 3 of block at {ZenKitPvP.top1.sign}
+	if {ZenKitPvP.top2.sign} is set:
+		set line 1 of block at {ZenKitPvP.top2.sign} to "&9&lTOP 2"
+		set line 2 of block at {ZenKitPvP.top2.sign} to "&a%{_2nd}%"
+		set line 3 of block at {ZenKitPvP.top2.sign} to "&8%{_2nd.point}% kills"
+		set line 4 of block at {ZenKitPvP.top2.sign} to ""
+		replace "<none>" with "None" in line 2 of block at {ZenKitPvP.top2.sign}
+		replace "<none>" with "0" in line 3 of block at {ZenKitPvP.top2.sign}
+	if {ZenKitPvP.top3.sign} is set:
+		set line 1 of block at {ZenKitPvP.top3.sign} to "&9&lTOP 3"
+		set line 2 of block at {ZenKitPvP.top3.sign} to "&a%{_3rd}%"
+		set line 3 of block at {ZenKitPvP.top3.sign} to "&8%{_3rd.point}% kills"
+		set line 4 of block at {ZenKitPvP.top3.sign} to ""
+		replace "<none>" with "None" in line 2 of block at {ZenKitPvP.top3.sign}
+		replace "<none>" with "0" in line 3 of block at {ZenKitPvP.top3.sign}
+	if {ZenKitPvP.top4.sign} is set:
+		set line 1 of block at {ZenKitPvP.top4.sign} to "&9&lTOP 4"
+		set line 2 of block at {ZenKitPvP.top4.sign} to "&a%{_4th}%"
+		set line 3 of block at {ZenKitPvP.top4.sign} to "&8%{_4th.point}% kills"
+		set line 4 of block at {ZenKitPvP.top4.sign} to ""
+		replace "<none>" with "None" in line 2 of block at {ZenKitPvP.top4.sign}
+		replace "<none>" with "0" in line 3 of block at {ZenKitPvP.top4.sign}
+	if {ZenKitPvP.top5.sign} is set:
+		set line 1 of block at {ZenKitPvP.top5.sign} to "&9&lTOP 5"
+		set line 2 of block at {ZenKitPvP.top5.sign} to "&a%{_5th}%"
+		set line 3 of block at {ZenKitPvP.top5.sign} to "&8%{_5th.point}% kills"
+		set line 4 of block at {ZenKitPvP.top5.sign} to ""
+		replace "<none>" with "None" in line 2 of block at {ZenKitPvP.top5.sign}
+		replace "<none>" with "0" in line 3 of block at {ZenKitPvP.top5.sign}
+
+on death:
+	if {kitpvp:join:%player%} is true:
+		add 1 to {kitpvpdeaths::%victim%}
+		add 1 to {killstreaks::%attacker%}
+		set {killstreaks::%victim%} to 0
+		invoke "score" from attacker
+		invoke "score" from victim
+		invoke "score" from player
+		if {kitpvp:join:%attacker%} is true:
+			add 1 to {kitpvpkills::%attacker%}
+			if player has permission "kitpvp.vip":
+				add 30 to {kitpvp::coins::%attacker%}
+			else:
+				add 15 to {kitpvp::coins::%attacker%}
+
+command /ppshop [<text>]:
+	trigger:
+		if {kitpvp:join:%player%} is true:
+			if arg 1 is "1":
+				if {kitpvp::coins::%player%} is greater than 520:
+					give 1 diamond sword to player
+					add -520 to {kitpvp::coins::%player%}
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::buy}%:&9 diamond sword"
+				else:
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::nocoins}%"
+			if arg 1 is "2":
+				if {kitpvp::coins::%player%} is greater than 95:
+					give 1 diamond helmet to player
+					add -95 to {kitpvp::coins::%player%}
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::buy}%:&9 diamond helmet"
+				else:
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::nocoins}%"
+			if arg 1 is "3":
+				if {kitpvp::coins::%player%} is greater than 85:
+					give 1 diamond chestplate to player
+					add -85 to {kitpvp::coins::%player%}
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::buy}%:&9 diamond chestplate"
+				else:
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::nocoins}%"
+			if arg 1 is "4":
+				if {kitpvp::coins::%player%} is greater than 85:
+					give 1 diamond leggings to player
+					add -85 to {kitpvp::coins::%player%}
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::buy}%:&9 diamond leggings"
+				else:
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::nocoins}%"
+			if arg 1 is "5":
+				if {kitpvp::coins::%player%} is greater than 15:
+					give 1 diamond boots to player
+					add -15 to {kitpvp::coins::%player%}
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::buy}%:&9 diamond boots"
+				else:
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::nocoins}%"
+			if arg 1 is "6":
+				if {kitpvp::coins::%player%} is greater than 25:
+					give 1 tnt to player
+					add -25 to {kitpvp::coins::%player%}
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::buy}%:&9 TNT"
+				else:
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::nocoins}%"
+			if arg 1 is "7":
+				if {kitpvp::coins::%player%} is greater than 25:
+					give 1 golden apple:0 to player
+					add -25 to {kitpvp::coins::%player%}
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::buy}%:&9 golden apple"
+				else:
+					send "%{ZenKitPvP.config::prefix}% %{ZenKitPvP.config::nocoins}%"
+
+every 3 seconds:	
+	loop all players:
+		invoke "score" from loop-player
+
+sub "score":
+	set {_player} to "%parameter 1%" parsed as player
+	if {kitpvp:join:%{_player}%} is true:
+		set {_n} to size of {ZenKitPvP.config::Scoreboard::*}
+		wipe {_player}'s sidebar
+		set name of sidebar of {_player} to "%{ZenKitPvP.config::Title}%"
+		loop {ZenKitPvP.config::Scoreboard::*}:
+			evaluate "set {_s} to ""%loop-value%"""
+			set {ZenKitPvP.config::Scoreboard::*} to yaml list "Scoreboard" from file "../../ZenKitPvP/scoreboard.yml"
+			replace all "<player>" with "%{_player}%" in {_s}
+			replace all "<coins>" with "%{kitpvp::coins::%{_player}%}%" in {_s}
+			replace all "<streaks>" with "%{killstreaks::%{_player}%}%" in {_s}
+			replace all "<deaths>" with "%{kitpvpdeaths::%{_player}%}%" in {_s}
+			replace all "<kills>" with "%{kitpvpkills::%{_player}%}%" in {_s}
+			set score "%{_s}%" in sidebar of {_player} to {_n}
+			subtract 1 from {_n}
+
+on load:
+	if folder "plugins/ZenKitPvP" doesn't exists:
+		send "&e&l(ZenKitPvP) &cFolder not found." to console
+		send "&e&l(ZenKitPvP) &6Creating folder..." to console
+		create folder "plugins/ZenKitPvP"
+		send "&e&l(ZenKitPvP) &aFolder created." to console
+	if file "plugins/ZenKitPvP/config.yml" doesn't exists:
+		send "&e&l(ZenKitPvP) &cConfig.yml not found." to console
+		send "&e&l(ZenKitPvP) &6Creating file config.yml..." to console
+		create file "plugins/ZenKitPvP/config.yml"
+		send "&e&l(ZenKitPvP) &aFile created." to console
+		wf "##------------------------------------------------------------------------------------------------------------------##" to "plugins/ZenKitPvP/config.yml"
+		wf "##                                                        ZenKitPvP                                              ##" to "plugins/ZenKitPvP/config.yml"									                								                           ##" to "plugins/ZenKitPvP/config.yml"
+		wf "##------------------------------------------------------------------------------------------------------------------##" to "plugins/ZenKitPvP/config.yml"
+		wf "" to "plugins/ZenKitPvP/config.yml"
+		wf "World: 'world'" to "plugins/ZenKitPvP/config.yml"
+		wf "Reappear: '5'" to "plugins/ZenKitPvP/config.yml"
+	if file "plugins/ZenKitPvP/scoreboard.yml" doesn't exists:
+		send "&e&l(ZenKitPvP) &cScoreboard.yml not found." to console
+		send "&e&l(ZenKitPvP) &6Creating file scoreboard.yml..." to console
+		create file "plugins/ZenKitPvP/scoreboard.yml"
+		send "&e&l(ZenKitPvP) &aFile created." to console
+		wf "##------------------------------------------------------------------------------------------------------------------##" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "##                                                        ZenKitPvP                                              ##" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "##------------------------------------------------------------------------------------------------------------------##" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "Title: '&7&l< &f&lZEN&e&lKITPVP &7&l>'" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "Scoreboard:" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""&b""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""&b<player>""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""\xa72""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""&bCoins: \xa7b<coins>""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""&bStreaks: \xa7b<streaks>""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""&bKills: \xa7b<kills>""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""&bDeaths: \xa7b<deaths>""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""\xa73""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""&6Join our discord (/discord)""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""\xa79""" to "plugins/ZenKitPvP/scoreboard.yml"
+		wf "  - ""&fplay.zenpvp.org""" to "plugins/ZenKitPvP/scoreboard.yml"
+	if file "plugins/ZenKitPvP/messages.yml" doesn't exists:
+		send "&e&l(ZenKitPvP) &cMessages.yml not found." to console
+		send "&e&l(ZenKitPvP) &6Creating file messages.yml..." to console
+		create file "plugins/ZenKitPvP/messages.yml"
+		send "&e&l(ZenKitPvP) &aFile created." to console
+		send "&e&l(ZenKitPvP) &eAll files create! &4please restart your server." to console
+		wf "##------------------------------------------------------------------------------------------------------------------##" to "plugins/ZenKitPvP/messages.yml"
+		wf "##                                                        ZenKitPvP                                              ##" to "plugins/ZenKitPvP/messages.yml"
+		wf "##------------------------------------------------------------------------------------------------------------------##" to "plugins/ZenKitPvP/messages.yml"
+		wf "" to "plugins/ZenKitPvP/messages.yml"
+		wf "prefix: '&e&lZen&f&lPvP'" to "plugins/ZenKitPvP/messages.yml"
+		wf "joinmessage: '&a<player> &7has joined KitPvP!'" to "plugins/ZenKitPvP/messages.yml"
+		wf "nopermission: '&4&LHOLD UP! &7I am afraid you do not have permission to run this command.'" to "plugins/ZenKitPvP/messages.yml"
+		wf "youcannot: '&7You can not do that.'" to "plugins/ZenKitPvP/messages.yml"
+		wf "youkilled: '&7You killed &9<victim>'" to "plugins/ZenKitPvP/messages.yml"
+		wf "youdied: '&7You died by &9<attacker>'" to "plugins/ZenKitPvP/messages.yml"
+		wf "unknownplayer: '&4&lHOLD UP! &7This player is UNKNOWN!'" to "plugins/ZenKitPvP/messages.yml"
+		wf "entered: '&7You have joined KitPvP'" to "plugins/ZenKitPvP/messages.yml"
+		wf "set_spawn: '&7The global KITPVP spawn has been set'" to "plugins/ZenKitPvP/messages.yml"
+		wf "set_leave: '&7The global KITPVP spawn has been set.'" to "plugins/ZenKitPvP/messages.yml"
+		wf "nocoins: '&cIm afraid you do not have enough coins!'" to "plugins/ZenKitPvP/messages.yml"
+		wf "buy: '&7You purchased:'" to "plugins/ZenKitPvP/messages.yml"
+		wf "reappearin: '&7You will respawn in &9<time> &7seconds'" to "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::world} to single value "World" get of "plugins/ZenKitPvP/config.yml"
+	set {ZenKitPvP.config::reappear} to single value "Reappear" get of "plugins/ZenKitPvP/config.yml"
+	set {ZenKitPvP.config::prefix} to value "prefix" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::join.msg} to value "joinmessage" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::nopermission} to value "nopermission" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::youcannot} to value "youcannot" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::youkilled} to value "youkilled" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::youdied} to value "youdied" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::nocommandarena} to value "nocommandarena" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::unknownplayer} to value "unknownplayer" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::entered} to value "entered" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::leave} to value "leave" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::set_spawn} to value "set_spawn" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::set_leave} to value "set_leave" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::nocoins} to value "nocoins" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::buy} to value "buy" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::reappearin} to value "reappearin" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::Title} to value "Title" get of "plugins/ZenKitPvP/scoreboard.yml"
+	set {ZenKitPvP.config::Scoreboard::*} to yaml list "Scoreboard" from file "../../ZenKitPvP/scoreboard.yml"
+	set {ZenKitPvP.config::line1} to value "line1" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line2} to value "line2" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line3} to value "line3" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line4} to value "line4" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line5} to value "line5" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line6} to value "line6" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line7} to value "line7" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line8} to value "line8" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line9} to value "line9" get of "plugins/ZenKitPvP/messages.yml"
+	set {ZenKitPvP.config::line10} to value "line10" get of "plugins/ZenKitPvP/messages.yml"
